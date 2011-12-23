@@ -19,6 +19,13 @@ static bool option_verbose = false;
 #define RETURN_INTERNALERROR 16
 static int return_status = RETURN_OK;
 
+// Technically this should be off_t, but we always want this to be 64-bit
+typedef int64_t f_offset;
+// Compatibility shim for Windows
+#ifdef _WIN32
+# define ftello _ftelli64
+#endif
+
 static void set_return_flag(int flag) {
 	if(!(return_status & flag)) {
 		return_status |= flag;
@@ -38,8 +45,7 @@ typedef struct {
 	char title[256];
 	size_t title_cursor;
 	// Start of the current article in the output file.  This *technically*
-	// should be off_t, but in practice we want it to always be 64-bit.
-	int64_t article_start;
+	f_offset article_start;
 	//Compression buffer and stream
 	z_stream compression_ctx;
 	// Output streams
@@ -102,7 +108,7 @@ static void handle_endtag(ParseCtx* ctx, const XML_Char* tag) {
 	if(strcmp(tag, "text") == 0) {
 		// Write this article into the db
 		fwrite(ctx->title, sizeof(char), MAX_TITLE_LEN, ctx->indexfile);
-		fwrite(&(ctx->article_start), sizeof(int64_t), 1, ctx->indexfile);
+		fwrite(&(ctx->article_start), sizeof(f_offset), 1, ctx->indexfile);
 		ctx->location = LOCATION_NULL;
 		
 		// Finish and close the current zlib stream
