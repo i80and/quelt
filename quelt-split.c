@@ -51,7 +51,7 @@ typedef enum {
 typedef struct {
 	// 255 is the maximum length of a Wikipedia article title, plus one for \0
 	char title[256];
-	size_t title_cursor;
+	short title_cursor;
 	// Start of the current article in the output file.  This *technically*
 	f_offset article_start;
 	//Compression buffer and stream

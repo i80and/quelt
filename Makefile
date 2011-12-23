@@ -1,5 +1,10 @@
-CC=clang
-CFLAGS=-g -Wall -Wextra -Wshadow -pedantic -std=c99 -Wno-unused-parameter -D _FILE_OFFSET_BITS=64 -Os
+CC=gcc
+
+DEBUG=-g -O0
+PRODUCTION=-Os
+# Change to DEBUG to include debugging symbols
+PROFILE=${PRODUCTION}
+CFLAGS=-Wall -Wextra -Wshadow -pedantic -std=c99 -Wno-unused-parameter -D _FILE_OFFSET_BITS=64 ${PROFILE}
 
 all: quelt quelt-split
 
@@ -13,4 +18,4 @@ pprint.o: pprint.c pprint.h
 	$(CC) $(CFLAGS) pprint.c -c
 
 clean:
-	rm -f quelt quelt-split pprint.o
+	rm -f quelt quelt-split *.o
