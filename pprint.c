@@ -1,3 +1,5 @@
+// Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
+
 #include "pprint.h"
 
 #define RESET_TOKEN "\x1b[0m"

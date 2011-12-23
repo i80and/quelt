@@ -1,3 +1,5 @@
+// Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
+
 #include <stdbool.h>
 #include <string.h>
 #include "pprint.h"

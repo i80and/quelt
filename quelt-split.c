@@ -1,3 +1,5 @@
+// Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
+
 #define _XOPEN_SOURCE 600
 
 #include <stdint.h>
@@ -28,15 +30,15 @@ static bool option_verbose = false;
 #define RETURN_INTERNALERROR 16
 static int return_status = RETURN_OK;
 
-// Add a flag to our return code
+// Add a flag to our return code.
 void set_return_flag(int flag) {
-	if(!(return_status & flag)) {
-		return_status |= flag;
-	}
+	return_status |= flag;
 }
 
 // Early exit with our return flags
-void fail(void) {
+void fail(int flag, const char* msg) {
+	log(msg);
+	set_return_flag(flag);
 	exit(return_status);
 }
 
@@ -89,9 +91,7 @@ static void write_chunk(ParseCtx* ctx, const XML_Char* s, int len, int flush) {
 		const size_t remaining = chunk_len - ctx->compression_ctx.avail_out;
 		fwrite(buf, sizeof(Bytef), remaining, ctx->dbfile);
 		if(ferror(ctx->dbfile)) {
-			log("Write error");
-			set_return_flag(RETURN_WRITEERROR);
-			fail();
+			fail(RETURN_WRITEERROR, "Write error");
 		}
 	} while(ctx->compression_ctx.avail_out == 0);
 }
@@ -102,9 +102,7 @@ static void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char**
 		ctx->article_start = ftello(ctx->dbfile);
 		
 		if(deflateInit(&ctx->compression_ctx, Z_BEST_COMPRESSION) != Z_OK) {
-			log("Error initializing zlib");
-			set_return_flag(RETURN_INTERNALERROR);
-			fail();
+			fail(RETURN_INTERNALERROR, "Error initializing zlib");
 		}
 	}
 	else if(strcmp(tag, "title") == 0) {
@@ -177,7 +175,7 @@ void parse(const char* path) {
 
 		if(!XML_Parse(parser, buffer, n_bytes, done)) {
 			set_return_flag(RETURN_BADXML);
-			fail();
+			fail(RETURN_BADXML, "Invalid XML");
 		}
 	}
 	
