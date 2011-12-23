@@ -2,6 +2,13 @@ Quelt
 =====
 A lightweight offline Wikipedia reader.
 
+Compilation Requirements
+------------
+* C99 compiler
+* Posix environment.  Some win32 shims exist, but they are untested.
+* Expat
+* Zlib
+
 File format
 -----------
 The initial plan was for Quelt to use a separate file for every article, using
