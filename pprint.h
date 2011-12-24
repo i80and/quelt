@@ -1,4 +1,4 @@
-// Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file
+// Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
 
 #ifndef PPRINT_H
 #define PPRINT_H

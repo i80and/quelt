@@ -8,11 +8,14 @@ CFLAGS=-Wall -Wextra -Wshadow -pedantic -std=c99 -Wno-unused-parameter -D _FILE_
 
 all: quelt quelt-split
 
-quelt: quelt.c pprint.o
-	$(CC) $(CFLAGS) quelt.c pprint.o -o quelt
+quelt: quelt.c quelt-common.o pprint.o
+	$(CC) $(CFLAGS) quelt.c quelt-common.o pprint.o -o quelt
 
-quelt-split: quelt-split.c pprint.o
-	$(CC) $(CFLAGS) quelt-split.c pprint.o -o quelt-split -lexpat -lz
+quelt-split: quelt-split.c quelt-common.o pprint.o
+	$(CC) $(CFLAGS) quelt-split.c quelt-common.o pprint.o -o quelt-split -lexpat -lz
+
+quelt-common.o: quelt-common.c quelt-common.h pprint.h
+	$(CC) $(CFLAGS) quelt-common.c -c
 
 pprint.o: pprint.c pprint.h
 	$(CC) $(CFLAGS) pprint.c -c

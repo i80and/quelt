@@ -2,21 +2,14 @@
 
 #define _XOPEN_SOURCE 600
 
-#include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <expat.h>
 #include <zlib.h>
+#include "quelt-common.h"
 #include "pprint.h"
-
-// Technically this should be off_t, but we always want it to be 64-bit
-typedef int64_t f_offset;
-// Compatibility shim for Windows
-#ifdef _WIN32
-# define ftello _ftelli64
-#endif
 
 // The command-line option -v sets this to true
 static bool option_verbose = false;
@@ -28,19 +21,6 @@ static bool option_verbose = false;
 #define RETURN_WRITEERROR 4
 #define RETURN_IMPROPERLYSORTED 8
 #define RETURN_INTERNALERROR 16
-static int return_status = RETURN_OK;
-
-// Add a flag to our return code.
-void set_return_flag(int flag) {
-	return_status |= flag;
-}
-
-// Early exit with our return flags
-void fail(int flag, const char* msg) {
-	log(msg);
-	set_return_flag(flag);
-	exit(return_status);
-}
 
 typedef enum {
 	LOCATION_NULL,
@@ -49,10 +29,9 @@ typedef enum {
 	LOCATION_TEXT
 } ParseLocation;
 
-#define MAX_TITLE_LEN 255
 typedef struct {
 	// 255 is the maximum length of a Wikipedia article title, plus one for \0
-	char title[256];
+	char title[MAX_TITLE_LEN+1];
 	short title_cursor;
 	// Start of the current article in the output file.  This *technically*
 	f_offset article_start;
@@ -65,7 +44,7 @@ typedef struct {
 	ParseLocation location;
 } ParseCtx;
 
-static void parsectx_init(ParseCtx* ctx, const char* dbpath, const char* indexpath) {
+void parsectx_init(ParseCtx* ctx, const char* dbpath, const char* indexpath) {
 	memset(ctx, 0, sizeof(ParseCtx));
 	
 	ctx->dbfile = fopen(dbpath, "wb");
@@ -76,7 +55,7 @@ static void parsectx_init(ParseCtx* ctx, const char* dbpath, const char* indexpa
 }
 
 // Compress and write a chunk of an article to the database
-static void write_chunk(ParseCtx* ctx, const XML_Char* s, int len, int flush) {
+void write_chunk(ParseCtx* ctx, const XML_Char* s, int len, int flush) {
 	const size_t chunk_len = 2048;
 	Bytef buf[chunk_len];
 	ctx->compression_ctx.next_in = (Bytef*)s;
@@ -96,7 +75,7 @@ static void write_chunk(ParseCtx* ctx, const XML_Char* s, int len, int flush) {
 	} while(ctx->compression_ctx.avail_out == 0);
 }
 
-static void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char** attrs) {
+void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char** attrs) {
 	if(strcmp(tag, "text") == 0) {
 		ctx->location = LOCATION_TEXT;
 		ctx->article_start = ftello(ctx->dbfile);
@@ -111,7 +90,7 @@ static void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char**
 	}
 }
 
-static void handle_endtag(ParseCtx* ctx, const XML_Char* tag) {
+void handle_endtag(ParseCtx* ctx, const XML_Char* tag) {
 	if(strcmp(tag, "text") == 0) {
 		// Write this article into the db
 		fwrite(ctx->title, sizeof(char), MAX_TITLE_LEN, ctx->indexfile);
@@ -131,7 +110,7 @@ static void handle_endtag(ParseCtx* ctx, const XML_Char* tag) {
 	}
 }
 
-static void handle_chardata(ParseCtx* ctx, const XML_Char* s, int len) {
+void handle_chardata(ParseCtx* ctx, const XML_Char* s, int len) {
 	if(ctx->location == LOCATION_TEXT) {
 		write_chunk(ctx, s, len, Z_NO_FLUSH);
 	}
