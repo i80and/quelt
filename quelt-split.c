@@ -31,7 +31,7 @@ typedef enum {
 
 typedef struct {
 	// 255 is the maximum length of a Wikipedia article title, plus one for \0
-	char title[MAX_TITLE_LEN+1];
+	char title[MAX_TITLE_LEN];
 	short title_cursor;
 	// Start of the current article in the output file.  This *technically*
 	f_offset article_start;
@@ -86,6 +86,7 @@ void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char** attrs)
 	}
 	else if(strcmp(tag, "title") == 0) {
 		ctx->location = LOCATION_TITLE;
+		memset(ctx->title, 0, MAX_TITLE_LEN);
 		ctx->title_cursor = 0;
 	}
 }
@@ -104,9 +105,6 @@ void handle_endtag(ParseCtx* ctx, const XML_Char* tag) {
 	else if(strcmp(tag, "title") == 0) {
 		ctx->location = LOCATION_NULL;
 		if(option_verbose) {log_printf("Processing %s", ctx->title);}
-
-		// Ensure that our title is zero-terminated
-		ctx->title[ctx->title_cursor] = '\0';
 	}
 }
 
