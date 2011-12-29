@@ -30,6 +30,7 @@ typedef enum {
 } ParseLocation;
 
 typedef struct {
+	int n_articles;
 	// 255 is the maximum length of a Wikipedia article title, plus one for \0
 	char title[MAX_TITLE_LEN];
 	short title_cursor;
@@ -44,11 +45,24 @@ typedef struct {
 	ParseLocation location;
 } ParseCtx;
 
+void quelt_writeindex(const ParseCtx* ctx) {
+	fwrite(ctx->title, sizeof(char), MAX_TITLE_LEN, ctx->indexfile);
+	fwrite(&(ctx->article_start), sizeof(f_offset), 1, ctx->indexfile);
+}
+
+void quelt_writeheader(ParseCtx* ctx) {
+	fseek(ctx->indexfile, 0, SEEK_SET);
+	fwrite(&ctx->n_articles, sizeof(int), 1, ctx->indexfile);
+}
+
 void parsectx_init(ParseCtx* ctx, const char* dbpath, const char* indexpath) {
 	memset(ctx, 0, sizeof(ParseCtx));
 	
 	ctx->dbfile = fopen(dbpath, "wb");
 	ctx->indexfile = fopen(indexpath, "wb");
+	// Pre-allocate space for the number of articles in this index
+	quelt_writeheader(ctx);
+
 	ctx->compression_ctx.zalloc = Z_NULL;
 	ctx->compression_ctx.zfree = Z_NULL;
 	ctx->compression_ctx.opaque = Z_NULL;
@@ -94,13 +108,14 @@ void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char** attrs)
 void handle_endtag(ParseCtx* ctx, const XML_Char* tag) {
 	if(strcmp(tag, "text") == 0) {
 		// Write this article into the db
-		fwrite(ctx->title, sizeof(char), MAX_TITLE_LEN, ctx->indexfile);
-		fwrite(&(ctx->article_start), sizeof(f_offset), 1, ctx->indexfile);
+		quelt_writeindex(ctx);
 		ctx->location = LOCATION_NULL;
 		
 		// Finish and close the current zlib stream
 		write_chunk(ctx, NULL, 0, Z_FINISH);
 		deflateEnd(&ctx->compression_ctx);
+
+		ctx->n_articles += 1;
 	}
 	else if(strcmp(tag, "title") == 0) {
 		ctx->location = LOCATION_NULL;
@@ -155,7 +170,10 @@ void parse(const char* path) {
 			fail(RETURN_BADXML, "Invalid XML");
 		}
 	}
-	
+
+	// Write the number of articles processed to the index header
+	quelt_writeheader(&ctx);
+
 	fclose(infile);
 	fclose(ctx.dbfile);
 	fclose(ctx.indexfile);
