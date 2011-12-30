@@ -1,7 +1,5 @@
 // Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
 
-#define _XOPEN_SOURCE 600
-
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>

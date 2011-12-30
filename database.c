@@ -1,5 +1,7 @@
 // Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
 
+#define _LARGEFILE_SOURCE
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
