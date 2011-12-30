@@ -5,9 +5,19 @@ A lightweight offline Wikipedia reader.
 Compilation Requirements
 ------------
 * C99 compiler
-* Posix environment.  Some win32 shims exist, but they are untested.
-* Expat
+* Unix environment.  Some win32 shims exist, but they are untested.
+* Expat (only for quelt-split)
 * Zlib
+
+Building
+--------
+$ make
+
+Usage
+-----
+    $ ./quelt-split [path to XML dump] [-v]
+    $ ./quelt [part of title] --search [--plain]
+    $ ./quelt [exact title] [--plain]
 
 File format
 -----------
@@ -20,12 +30,4 @@ the path for the article name.  A cute idea, but reality set in fairly quickly:
 So instead, a custom binary format is used with two files: quelt.db, and
 quelt.index.
 
-quelt.db is just concatenated zlib streams, each containing an article.
-Ordering is defined by the input, which should be pre-sorted byte-wise.
-
-quelt.index may be described as a simple array of structs, sharing the same
-order as quelt.db.
-struct Field {
-	char[255] title;
-	int64_t article_start;
-};
+TODO: file format documentation (still undergoing churn)
