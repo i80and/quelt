@@ -41,7 +41,6 @@ static QueltDB* _queltdb_new(void) {
 QueltDB* queltdb_create(void) {
 	QueltDB* db = _queltdb_new();
 	db->open_mode = 'w';
-	db->in_article = false;
 
 	// Prepare our compression stream
 	db->compression_ctx.zalloc = Z_NULL;
@@ -77,6 +76,7 @@ void queltdb_writechunk(QueltDB* db, const char* buf, size_t len) {
 	if(!db->in_article) {
 		deflateInit(&db->compression_ctx, Z_BEST_COMPRESSION);
 		db->in_article = true;
+		db->article_start = ftello(db->dbfile);
 	}
 
 	_write_chunk(db, buf, len, Z_NO_FLUSH);
