@@ -13,8 +13,10 @@
 #endif
 
 struct QueltDB {
+	// Indicates whether this database is opened for 'w'riting or 'r'eading
 	char open_mode;
 	int32_t n_articles;
+	// The offset in the database file where the current article started
 	f_offset article_start;
 
 	bool in_article;
@@ -41,6 +43,7 @@ QueltDB* queltdb_create(void) {
 	db->open_mode = 'w';
 	db->in_article = false;
 
+	// Prepare our compression stream
 	db->compression_ctx.zalloc = Z_NULL;
     db->compression_ctx.zfree = Z_NULL;
     db->compression_ctx.opaque = Z_NULL;
@@ -80,17 +83,19 @@ void queltdb_writechunk(QueltDB* db, const char* buf, size_t len) {
 }
 
 void queltdb_finisharticle(QueltDB* db, const char* title, size_t len) {
+	// Finish the compression stream
 	_write_chunk(db, NULL, 0, Z_FINISH);
+	deflateEnd(&db->compression_ctx);
 
+	// The title we're given might be shorter than MAX_TITLE_LEN.  Pad it out.
 	char buf[MAX_TITLE_LEN] = {0};
 	memcpy(buf, title, len);
 
+	// Write the index record
 	fwrite(buf, sizeof(char), MAX_TITLE_LEN, db->indexfile);
 	fwrite(&(db->article_start), sizeof(f_offset), 1, db->indexfile);
 
-	deflateEnd(&db->compression_ctx);
 	db->in_article = false;
-
 	db->n_articles += 1;
 }
 
@@ -115,6 +120,8 @@ void queltdb_search(QueltDB* db, const char* needle,
 	char title[MAX_TITLE_LEN+1];
 	f_offset start = 0;
 
+	// For each field, check to see if needle is in that title.  If so, call
+	// the provided handler.
 	while(!feof(db->indexfile)) {
 		fread(title, sizeof(char), MAX_TITLE_LEN, db->indexfile);
 		fread(&start, sizeof(f_offset), 1, db->indexfile);
@@ -139,6 +146,5 @@ void queltdb_close(QueltDB* db) {
 
 	fclose(db->indexfile);
 	fclose(db->dbfile);
-
 	free(db);
 }
