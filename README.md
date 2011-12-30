@@ -11,7 +11,7 @@ Compilation Requirements
 
 Building
 --------
-$ make
+    $ make
 
 Usage
 -----
