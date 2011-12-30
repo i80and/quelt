@@ -45,8 +45,8 @@ QueltDB* queltdb_create(void) {
 
 	// Prepare our compression stream
 	db->compression_ctx.zalloc = Z_NULL;
-    db->compression_ctx.zfree = Z_NULL;
-    db->compression_ctx.opaque = Z_NULL;
+	db->compression_ctx.zfree = Z_NULL;
+	db->compression_ctx.opaque = Z_NULL;
 
 	db->indexfile = fopen("quelt.index", "wb");
 	fwrite(&db->n_articles, sizeof(int32_t), 1, db->indexfile);
