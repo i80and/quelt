@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <zlib.h>
+#include "pprint.h"
 #include "database.h"
 #include "quelt-common.h"
 
@@ -133,10 +134,107 @@ void queltdb_search(QueltDB* db, const char* needle,
 	}
 }
 
+static void _queltdb_sendarticle(QueltDB* db, f_offset offset,
+								queltdb_handler_func handler, void* ctx) {
+	int status = Z_OK;
+	z_stream decompression_ctx;
+	decompression_ctx.zalloc = Z_NULL;
+	decompression_ctx.zfree = Z_NULL;
+	decompression_ctx.opaque = Z_NULL;
+	decompression_ctx.avail_in = 0;
+	decompression_ctx.next_in = Z_NULL;
+	inflateInit(&decompression_ctx);
+
+	const int chunk_len = 2048;
+	Bytef in[chunk_len];
+    Bytef out[chunk_len];
+
+	fseeko(db->dbfile, offset, SEEK_SET);
+
+	// Read chunks until the stream ends
+	do {
+		decompression_ctx.avail_in = fread(in, sizeof(char), chunk_len, db->dbfile);
+		if (decompression_ctx.avail_in == 0)
+			break;
+		decompression_ctx.next_in = in;
+
+		// Inflate until the zlib buffer is empty
+		do {
+			decompression_ctx.avail_out = chunk_len;
+			decompression_ctx.next_out = out;
+			status = inflate(&decompression_ctx, Z_NO_FLUSH);
+			const int remaining = chunk_len - decompression_ctx.avail_out;
+			handler(ctx, (char*)out, remaining);
+		} while (decompression_ctx.avail_out == 0);
+	} while (status != Z_STREAM_END);
+
+	inflateEnd(&decompression_ctx);
+}
+
+void queltdb_getarticle(QueltDB* db, const char* article,
+						queltdb_handler_func handler, void* ctx) {
+	char title[MAX_TITLE_LEN+1];
+	f_offset start = 0;
+
+	// Skip past the index header
+	fseeko(db->indexfile, sizeof(int32_t), SEEK_SET);
+
+	while(!feof(db->indexfile)) {
+		fread(title, sizeof(char), MAX_TITLE_LEN, db->indexfile);
+		fread(&start, sizeof(f_offset), 1, db->indexfile);
+		if(strcmp(title, article) == 0) {
+			log_printf("%p", ctx);
+			_queltdb_sendarticle(db, start, handler, ctx);
+		}
+	}
+}
+
+// XXX Partial binary search implementation of the above.  I thought Wikipedia
+// dumps were sorted.  They're not.  We need to take care of that first.
+/*
+// Find a midpoint, avoiding the low+high<0 overflow problem.
+static inline int32_t _midpoint(int32_t low, int32_t high) {
+	// Cast to unsigned necessary to get a logical rshift
+	return ((uint32_t)low + (uint32_t)high) >> 1;
+}
+
 void queltdb_getarticle(QueltDB* db, const char* title,
 						queltdb_handler_func* handler, void* ctx) {
-	// STUB
+	char cur_title[MAX_TITLE_LEN+1];
+	f_offset start = 0;
+	const size_t index_start = sizeof(int32_t);
+	int32_t low = 0;
+	int32_t high = db->n_articles - 1;
+	int32_t cur = _midpoint(low, high);
+
+	// Use a sanity guard to make sure a bug doesn't send our algorithm
+	// spinning off forever.  XXX: Do we *really* need this?
+	const float worst_case = ceilf(log2(db->n_articles));
+	float comparisons = 0;
+
+	while(comparisons <= worst_case) {
+		fseeko(db->indexfile, (index_start + cur*(MAX_TITLE_LEN+sizeof(f_offset))), SEEK_SET);
+		fread(cur_title, sizeof(char), MAX_TITLE_LEN, db->indexfile);
+		fread(&start, sizeof(f_offset), 1, db->indexfile);
+		log_printf("%d %s", cur, cur_title);
+		const int cmp = strcmp(title, cur_title);
+		if(cmp < 0) {
+			high = cur - 1;
+		}
+		else if(cmp > 0) {
+			low = cur + 1;
+		}
+		else {
+			log("Found!");
+			break;
+		}
+
+		cur = _midpoint(low, high);
+		comparisons += 1;
+	}
+	log("Failed");
 }
+*/
 
 void queltdb_close(QueltDB* db) {
 	if(!db) return;

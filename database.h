@@ -37,7 +37,7 @@ void queltdb_search(QueltDB* db, const char* needle,
 // Quickly find the given article, and call handler(ctx, chunk, chunk_len) for
 // each chunk of the article as it becomes available
 void queltdb_getarticle(QueltDB* db, const char* title,
-						queltdb_handler_func* handler, void* ctx);
+						queltdb_handler_func handler, void* ctx);
 
 // Free any associated resources, and finish writing if necessary
 void queltdb_close(QueltDB* db);

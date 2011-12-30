@@ -19,6 +19,10 @@ void search_match_handler(void* ctx, char* title, size_t title_len) {
 	printf("%s\n", title);
 }
 
+void article_chunk_handler(void* ctx, char* data, size_t chunk_len) {
+	fwrite(data, chunk_len, 1, stdout);
+}
+
 // Perform a linear-time search 
 static void search(QueltDB* db, const char* title) {
 	queltdb_search(db, title, &search_match_handler, NULL);
@@ -51,7 +55,7 @@ int main(int argc, char** argv) {
 		search(db, article);
 	}
 	else {
-		fail(RETURN_NOMATCH, "Normal operation unimplemented.");
+		queltdb_getarticle(db, article, &article_chunk_handler, NULL);
 	}
 
 	queltdb_close(db);
