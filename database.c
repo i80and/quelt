@@ -1,10 +1,11 @@
+// Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <zlib.h>
 #include "database.h"
 #include "quelt-common.h"
-#include "pprint.h"
 
 // Compatibility shim for Windows
 #ifdef _WIN32
@@ -93,7 +94,8 @@ void queltdb_finisharticle(QueltDB* db, const char* title, size_t len) {
 	db->n_articles += 1;
 }
 
-int queltdb_open(QueltDB* db) {
+QueltDB* queltdb_open(void) {
+	QueltDB* db = _queltdb_new();
 	db->open_mode = 'r';
 	
 	db->indexfile = fopen("quelt.index", "rb");
@@ -101,12 +103,25 @@ int queltdb_open(QueltDB* db) {
 
 	db->dbfile = fopen("quelt.db", "rb");
 
+	return db;
+}
+
+int queltdb_narticles(const QueltDB* db) {
 	return db->n_articles;
 }
 
 void queltdb_search(QueltDB* db, const char* needle,
-					queltdb_handler_func* handler, void* ctx) {
-	// STUB
+					queltdb_handler_func handler, void* ctx) {
+	char title[MAX_TITLE_LEN+1];
+	f_offset start = 0;
+
+	while(!feof(db->indexfile)) {
+		fread(title, sizeof(char), MAX_TITLE_LEN, db->indexfile);
+		fread(&start, sizeof(f_offset), 1, db->indexfile);
+		if(strstr(title, needle) != NULL) {
+			handler(ctx, title, MAX_TITLE_LEN);
+		}
+	}
 }
 
 void queltdb_getarticle(QueltDB* db, const char* title,

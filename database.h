@@ -1,3 +1,5 @@
+// Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
+
 #ifndef QUELT_DATABASE_H
 #define QUELT_DATABASE_H
 
@@ -21,11 +23,13 @@ void queltdb_writechunk(QueltDB* db, const char* buf, size_t len);
 void queltdb_finisharticle(QueltDB* db, const char* title, size_t len);
 
 // Open a database for reading, returning the number of articles
-int queltdb_open(QueltDB* db);
+QueltDB* queltdb_open(void);
+// Return the number of articles in this database.
+int queltdb_narticles(const QueltDB* db);
 // Search for any article containing the given needle.  For each match,
 // call handler(ctx, match_title, title_len)
 void queltdb_search(QueltDB* db, const char* needle,
-					queltdb_handler_func* handler, void* ctx);
+					queltdb_handler_func handler, void* ctx);
 // Quickly find the given article, and call handler(ctx, chunk, chunk_len) for
 // each chunk of the article as it becomes available.
 void queltdb_getarticle(QueltDB* db, const char* title,

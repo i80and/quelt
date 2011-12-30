@@ -9,8 +9,8 @@
 #include <expat.h>
 #include <zlib.h>
 #include "database.h"
-#include "quelt-common.h"
 #include "pprint.h"
+#include "quelt-common.h"
 
 // The command-line option -v sets this to true
 static bool option_verbose = false;
