@@ -16,7 +16,6 @@ static bool option_verbose = false;
 // The command line option --noredirects disables saving articles that start
 // with a redirect directive.
 static bool option_noredirects = false;
-#define MIN_ARTICLE_LEN 512
 
 // Our return code is a bitfield.  Don't rely on these to not change just yet
 #define RETURN_OK 0
