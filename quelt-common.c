@@ -10,7 +10,9 @@ void set_return_flag(int flag) {
 }
 
 void fail(int flag, const char* msg) {
-	log(msg);
+	if(msg != NULL) {
+		log(msg);
+	}
 	set_return_flag(flag);
 	exit(return_status);
 }

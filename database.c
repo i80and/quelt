@@ -43,6 +43,10 @@ static QueltDB* _queltdb_new(void) {
 
 QueltDB* queltdb_create(void) {
 	QueltDB* db = _queltdb_new();
+	if(!db) {
+		return NULL;
+	}
+	
 	db->open_mode = 'w';
 
 	// Prepare our compression stream
@@ -51,9 +55,15 @@ QueltDB* queltdb_create(void) {
 	db->compression_ctx.opaque = Z_NULL;
 
 	db->indexfile = fopen("quelt.index", "wb");
-	fwrite(&db->n_articles, sizeof(int32_t), 1, db->indexfile);
-
 	db->dbfile = fopen("quelt.db", "wb");
+
+	if(!db->indexfile || !db->dbfile) {
+		free(db);
+		return NULL;
+	}
+
+	// Pad out a header for an article count
+	fwrite(&db->n_articles, sizeof(int32_t), 1, db->indexfile);
 
 	return db;
 }

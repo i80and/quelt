@@ -10,16 +10,21 @@
 #include "pprint.h"
 #include "quelt-common.h"
 
-// The command-line option -v sets this to true
+// The command line option -v sets this to true
 static bool option_verbose = false;
 
-// Our return code is a bitfield
+// The command line option --minbytes sets this, giving the minimum length for
+// an article to be included
+static int option_minbytes = -1;
+
+// Our return code is a bitfield.  Don't rely on these to not change just yet
 #define RETURN_OK 0
 #define RETURN_BADARGS 1
-#define RETURN_BADXML 2
-#define RETURN_WRITEERROR 4
-#define RETURN_IMPROPERLYSORTED 8
-#define RETURN_INTERNALERROR 16
+#define RETURN_BADFILE 2
+#define RETURN_BADXML 4
+#define RETURN_WRITEERROR 8
+#define RETURN_IMPROPERLYSORTED 16
+#define RETURN_INTERNALERROR 32
 
 typedef enum {
 	LOCATION_NULL,
@@ -40,6 +45,9 @@ typedef struct {
 void parsectx_init(ParseCtx* ctx, const char* dbpath, const char* indexpath) {
 	memset(ctx, 0, sizeof(ParseCtx));
 	ctx->db = queltdb_create();
+	if(!ctx->db) {
+		fail(RETURN_INTERNALERROR, "Could not open database");
+	}
 }
 
 void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char** attrs) {
@@ -95,6 +103,11 @@ void parse(const char* path) {
 
 	FILE* infile = fopen(path, "r");
 
+	if(!infile) {
+		fprintf(stderr, "Could not open %s\n", path);
+		fail(RETURN_BADFILE, NULL);
+	}
+
 	// TODO: Choose buffer based on filesystem block size
 	const size_t buffer_len = 1024;
 	char buffer[buffer_len];
@@ -118,16 +131,24 @@ void parse(const char* path) {
 	XML_ParserFree(parser);
 }
 
+static void parse_argument(const char* arg) {
+	if(strcmp(arg, "-v") == 0) {
+		option_verbose = true;
+	}
+	else if(strstr(arg, "--minbytes=") == arg) {
+		const char* match = strstr(arg, "=") + 1;
+		option_minbytes = atoi(match);
+	}
+}
+
 int main(int argc, char** argv) {
-	// quelt-split db [-v]
 	if(argc <= 1) {
-		log("No XML dump specified.\nUsage: quelt-split db [-v]");
+		log("No XML dump specified.\nUsage: quelt-split db [-v] [--minbytes=n]");
 		return RETURN_BADARGS;
 	}
 
-	// Check for verbose option
-	if(argc >= 3 && !strcmp(argv[2], "-v")) {
-		option_verbose = true;
+	for(int i = 2; i < argc; i+=1) {
+		parse_argument(argv[i]);
 	}
 
 	const char* path = argv[1];
