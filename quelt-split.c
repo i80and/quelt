@@ -1,21 +1,22 @@
 // Copyright (c) 2011 Andrew Aldridge under the terms in the LICENSE file.
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <stdio.h>
 #include <expat.h>
 #include <zlib.h>
 #include "database.h"
 #include "pprint.h"
 #include "quelt-common.h"
 
-// The command line option -v sets this to true
+// The command line option -v gives additional information during processing
 static bool option_verbose = false;
 
-// The command line option --minbytes sets this, giving the minimum length for
-// an article to be included
-static int option_minbytes = -1;
+// The command line option --noredirects disables saving articles that start
+// with a redirect directive.
+static bool option_noredirects = false;
+#define MIN_ARTICLE_LEN 512
 
 // Our return code is a bitfield.  Don't rely on these to not change just yet
 #define RETURN_OK 0
@@ -29,7 +30,7 @@ static int option_minbytes = -1;
 typedef enum {
 	LOCATION_NULL,
 	LOCATION_TITLE,
-	LOCATION_TIMESTAMP,
+	LOCATION_ARTICLE_START,
 	LOCATION_TEXT
 } ParseLocation;
 
@@ -52,7 +53,7 @@ void parsectx_init(ParseCtx* ctx, const char* dbpath, const char* indexpath) {
 
 void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char** attrs) {
 	if(strcmp(tag, "text") == 0) {
-		ctx->location = LOCATION_TEXT;
+		ctx->location = LOCATION_ARTICLE_START;
 	}
 	else if(strcmp(tag, "title") == 0) {
 		ctx->location = LOCATION_TITLE;
@@ -62,18 +63,45 @@ void handle_starttag(ParseCtx* ctx, const XML_Char* tag, const XML_Char** attrs)
 }
 
 void handle_endtag(ParseCtx* ctx, const XML_Char* tag) {
-	if(strcmp(tag, "text") == 0) {
+	if((strcmp(tag, "text") == 0) && (ctx->location == LOCATION_TEXT)) {
 		// Write this article into the db
 		queltdb_finisharticle(ctx->db, ctx->title, MAX_TITLE_LEN);
 		ctx->location = LOCATION_NULL;
 	}
 	else if(strcmp(tag, "title") == 0) {
 		ctx->location = LOCATION_NULL;
-		if(option_verbose) {log_printf("Processing %s", ctx->title);}
+		if(option_verbose) printf("Processing %s\n", ctx->title);
 	}
 }
 
+// Return whether the first len bytes of body indicate a redirect page
+static inline bool is_redirect(const char* body, int len) {
+	static const char* REDIRECT_TOKEN = "#REDIRECT";
+	static const int REDIRECT_TOKEN_LEN = 9;
+
+	const int min = (len < REDIRECT_TOKEN_LEN)? len : REDIRECT_TOKEN_LEN;
+
+	// If body is shorter than #REDIRECT, that causes an ugly corner-case where
+	// # is compared to the first byte of #REDIRECT.  Which is a false-positive
+	if(len >= REDIRECT_TOKEN_LEN && strncmp(body, REDIRECT_TOKEN, min) == 0) {
+		return true;
+	}
+
+	return false;
+}
+
 void handle_chardata(ParseCtx* ctx, const XML_Char* s, int len) {
+	if(ctx->location == LOCATION_ARTICLE_START) {
+		// If instructed, skip this article if it seems to be a redirect
+		if(option_noredirects && is_redirect(s, len)) {
+			ctx->location = LOCATION_NULL;
+			if(option_verbose) printf("Skipping %s\n", ctx->title);
+			return;
+		}
+
+		ctx->location = LOCATION_TEXT;
+	}
+
 	if(ctx->location == LOCATION_TEXT) {
 		queltdb_writechunk(ctx->db, s, len*sizeof(XML_Char));
 	}
@@ -102,7 +130,6 @@ void parse(const char* path) {
 	XML_SetUserData(parser, &ctx);
 
 	FILE* infile = fopen(path, "r");
-
 	if(!infile) {
 		fprintf(stderr, "Could not open %s\n", path);
 		fail(RETURN_BADFILE, NULL);
@@ -135,15 +162,14 @@ static void parse_argument(const char* arg) {
 	if(strcmp(arg, "-v") == 0) {
 		option_verbose = true;
 	}
-	else if(strstr(arg, "--minbytes=") == arg) {
-		const char* match = strstr(arg, "=") + 1;
-		option_minbytes = atoi(match);
+	else if(strcmp(arg, "--noredirects") == 0) {
+		option_noredirects = true;
 	}
 }
 
 int main(int argc, char** argv) {
 	if(argc <= 1) {
-		log("No XML dump specified.\nUsage: quelt-split db [-v] [--minbytes=n]");
+		log("No XML dump specified.\nUsage: quelt-split db [-v] [--noredirects]");
 		return RETURN_BADARGS;
 	}
 
