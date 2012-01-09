@@ -193,8 +193,10 @@ void queltdb_getarticle(QueltDB* db, const char* article,
 		fread(title, sizeof(char), MAX_TITLE_LEN, db->indexfile);
 		fread(&start, sizeof(f_offset), 1, db->indexfile);
 		if(strcmp(title, article) == 0) {
-			log_printf("%p", ctx);
 			_queltdb_sendarticle(db, start, handler, ctx);
+			
+			// We have what we want.  Short-circuit
+			return;
 		}
 	}
 }
