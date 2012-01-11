@@ -15,12 +15,59 @@ static bool option_plain = false;
 #define RETURN_UNKNOWNERROR 1
 #define RETURN_NOMATCH 2
 
+typedef struct {
+	int template_depth;
+	char prev_byte;
+} HandlerCtx;
+
 void search_match_handler(void* ctx, char* title, size_t title_len) {
 	printf("%s\n", title);
 }
 
-void article_chunk_handler(void* ctx, char* data, size_t chunk_len) {
+void raw_chunk_handler(void* ctx, char* data, size_t chunk_len) {
 	fwrite(data, chunk_len, 1, stdout);
+}
+
+void fancy_chunk_handler(void* rawctx, char* data, size_t chunk_len) {
+	// For now, we just completely remove all templates.  Parsing WikiMarkup
+	// in any meaningful way is a bottomless rabbit hole of death and
+	// corner-cases
+	HandlerCtx* ctx = (HandlerCtx*)rawctx;
+	size_t i = 0;
+
+	while(i < chunk_len) {
+		if(i == chunk_len - 1) {
+			// This is the last byte, so we can't tell if it's starting a token
+			// XXX FINISH ME
+			if(data[i] == '{' || data[i] == '}') {
+				ctx->prev_byte = data[i];
+			}
+			else {
+				ctx->prev_byte = 0;
+			}
+
+			return;
+		}
+
+		if(data[i] == '{' && data[i+1] == '{') {
+			ctx->template_depth += 1;
+			i += 2;
+		}
+		else if(data[i] == '}' && data[i+1] == '}') {
+			ctx->template_depth -= 1;
+			i += 2;
+
+			// If this is our last nested template, add a skipped content marker
+			if(ctx->template_depth == 0) fputs("###", stdout);
+		}
+		else {
+			if(ctx->template_depth == 0) {
+				fputc(data[i], stdout);
+			}
+			
+			i += 1;
+		}
+	}
 }
 
 // Perform a linear-time search 
@@ -55,7 +102,13 @@ int main(int argc, char** argv) {
 		search(db, article);
 	}
 	else {
-		queltdb_getarticle(db, article, &article_chunk_handler, NULL);
+		if(option_plain) {
+			queltdb_getarticle(db, article, &raw_chunk_handler, NULL);
+		}
+		else {
+			HandlerCtx ctx = {0, 0};
+			queltdb_getarticle(db, article, &fancy_chunk_handler, &ctx);
+		}
 	}
 
 	queltdb_close(db);
