@@ -31,6 +31,7 @@ So instead, a custom binary format is used with two files: `quelt.db`, and
 `quelt.index`.
 
 `quelt.index`:
+
     | n_articles: Signed 32-bit integer of unspecified endianness
     | article 0 title: 255 bytes
     | article 0 offset: Signed 64-bit integer of unspecifed endianness
