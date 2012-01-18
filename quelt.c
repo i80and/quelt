@@ -11,10 +11,8 @@
 static bool option_search = false;
 static bool option_plain = false;
 
-#define RETURN_OK 0
-#define RETURN_UNKNOWNERROR 1
-#define RETURN_NOMATCH 2
-#define RETURN_BADARGS 4
+#define RETURN_NOMATCH 4
+#define RETURN_UNKNOWNERROR 128
 
 typedef struct {
 	int template_depth;

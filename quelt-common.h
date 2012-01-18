@@ -5,6 +5,10 @@
 
 #include <stdint.h>
 
+#define RETURN_OK 0
+#define RETURN_BADARGS 1
+#define RETURN_BADFILE 2
+
 // Add a flag to our return code.
 void set_return_flag(int flag);
 

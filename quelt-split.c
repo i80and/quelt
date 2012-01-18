@@ -18,13 +18,9 @@ static bool option_verbose = false;
 static bool option_noredirects = false;
 
 // Our return code is a bitfield.  Don't rely on these to not change just yet
-#define RETURN_OK 0
-#define RETURN_BADARGS 1
-#define RETURN_BADFILE 2
 #define RETURN_BADXML 4
 #define RETURN_WRITEERROR 8
-#define RETURN_IMPROPERLYSORTED 16
-#define RETURN_INTERNALERROR 32
+#define RETURN_INTERNALERROR 128
 
 typedef enum {
 	LOCATION_NULL,
