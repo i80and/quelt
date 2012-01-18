@@ -164,6 +164,9 @@ static void parse_argument(const char* arg) {
 	else if(strcmp(arg, "--noredirects") == 0) {
 		option_noredirects = true;
 	}
+	else {
+		fail(RETURN_BADARGS, "Unrecognized argument");
+	}
 }
 
 int main(int argc, char** argv) {

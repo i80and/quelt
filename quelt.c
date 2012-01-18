@@ -14,6 +14,7 @@ static bool option_plain = false;
 #define RETURN_OK 0
 #define RETURN_UNKNOWNERROR 1
 #define RETURN_NOMATCH 2
+#define RETURN_BADARGS 4
 
 typedef struct {
 	int template_depth;
@@ -81,6 +82,9 @@ void parse_argument(const char* arg) {
 	}
 	else if(!option_plain && strcmp(arg, "--plain") == 0) {
 		option_plain = true;
+	}
+	else {
+		fail(RETURN_BADARGS, "Unrecognized argument");
 	}
 }
 
