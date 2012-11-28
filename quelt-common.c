@@ -6,13 +6,13 @@
 static int return_status = 0;
 
 void set_return_flag(int flag) {
-	return_status |= flag;
+    return_status |= flag;
 }
 
 void fail(int flag, const char* msg) {
-	if(msg != NULL) {
-		log(msg);
-	}
-	set_return_flag(flag);
-	exit(return_status);
+    if(msg != NULL) {
+        log(msg);
+    }
+    set_return_flag(flag);
+    exit(return_status);
 }

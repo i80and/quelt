@@ -32,13 +32,13 @@ So instead, a custom binary format is used with two files: `quelt.db`, and
 
 `quelt.index`:
 
-    | n_articles: Signed 32-bit integer of unspecified endianness
-    | article 0 title: 255 bytes
-    | article 0 offset: Signed 64-bit integer of unspecifed endianness
-    | article 1 title
-    | article 1 offset
-    | article n title
-    | article n offset
+    | n_articles:       Int32
+    | article 0 title:  Byte[255]
+    | article 0 offset: Int64
+    | article 1 title:  Byte[255]
+    | article 1 offset: Int64
+    | article n title:  Byte[255]
+    | article n offset: Int64
 
 `quelt.db` is a concatenated sequence of zlib streams, where the start of each
 article is given by the article offsets in `quelt.index`
