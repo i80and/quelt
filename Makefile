@@ -8,20 +8,17 @@ CFLAGS=-Wall -Wextra -Wshadow -pedantic -std=c99 -Wno-unused-parameter -D _FILE_
 
 all: quelt quelt-split
 
-quelt: quelt.c quelt-common.o database.o pprint.o
-	$(CC) $(CFLAGS) quelt.c quelt-common.o database.o pprint.o -o quelt -lz
+quelt: src/quelt.c src/quelt-common.o src/database.o
+	$(CC) $(CFLAGS) src/quelt.c src/quelt-common.o src/database.o -o quelt -lz
 
-quelt-split: quelt-split.c quelt-common.o database.o pprint.o
-	$(CC) $(CFLAGS) quelt-split.c quelt-common.o database.o pprint.o -o quelt-split -lexpat -lz
+quelt-split: src/quelt-split.c src/quelt-common.o src/database.o
+	$(CC) $(CFLAGS) src/quelt-split.c src/quelt-common.o src/database.o -o quelt-split -lexpat -lz
 
-quelt-common.o: quelt-common.c quelt-common.h pprint.h
-	$(CC) $(CFLAGS) quelt-common.c -c
+src/quelt-common.o: src/quelt-common.c src/quelt-common.h
+	$(CC) $(CFLAGS) -c -o $@ src/quelt-common.c
 
-database.o: database.h database.c
-	$(CC) $(CFLAGS) database.c -c
-
-pprint.o: pprint.c pprint.h
-	$(CC) $(CFLAGS) pprint.c -c
+src/database.o: src/database.h src/database.c
+	$(CC) $(CFLAGS) -c -o $@ src/database.c
 
 clean:
-	rm -f quelt quelt-split *.o
+	rm -f quelt quelt-split src/*.o
