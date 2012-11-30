@@ -11,7 +11,7 @@
 static bool option_search = false;
 static bool option_plain = false;
 
-#define RETURN_NOMATCH 4
+#define RETURN_NOMATCH 3
 #define RETURN_UNKNOWNERROR 128
 
 typedef struct {
@@ -89,7 +89,7 @@ void parse_argument(const char* arg) {
 int main(int argc, char** argv) {
     if(argc < 2) {
         log("No article specified\nUsage: quelt article [--search] [--plain]");
-        return 1;
+        return RETURN_BADARGS;
     }
 
     const char* article = argv[1];
@@ -99,21 +99,28 @@ int main(int argc, char** argv) {
     }
 
     QueltDB* db = queltdb_open();
+    if(!db) {
+        log("Could not open database.");
+        return RETURN_BADFILE;
+    }
 
+    int found = 0;
     if(option_search) {
         search(db, article);
     }
     else {
         if(option_plain) {
-            queltdb_getarticle(db, article, &raw_chunk_handler, NULL);
+            found = queltdb_getarticle(db, article, &raw_chunk_handler, NULL);
         }
         else {
             HandlerCtx ctx = {0, 0};
-            queltdb_getarticle(db, article, &fancy_chunk_handler, &ctx);
+            found = queltdb_getarticle(db, article, &fancy_chunk_handler, &ctx);
         }
     }
 
     queltdb_close(db);
+
+    if(!found) return RETURN_NOMATCH;
 
     return 0;
 }

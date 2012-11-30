@@ -146,7 +146,6 @@ void parse(const char* path) {
         }
 
         if(!XML_Parse(parser, buffer, n_bytes, done)) {
-            set_return_flag(RETURN_BADXML);
             fail(RETURN_BADXML, "Invalid XML");
         }
     }

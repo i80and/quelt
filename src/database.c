@@ -45,6 +45,10 @@ static QueltDB* _queltdb_new(void) {
     return db;
 }
 
+static void _queltdb_free(QueltDB* db) {
+    free(db);
+}
+
 QueltDB* queltdb_create(int32_t segment_length) {
     QueltDB* db = _queltdb_new();
     if(!db) {
@@ -62,7 +66,7 @@ QueltDB* queltdb_create(int32_t segment_length) {
     db->dbfile = fopen("quelt.db", "wb+");
 
     if(!db->indexfile || !db->dbfile) {
-        free(db);
+        _queltdb_free(db);
         return NULL;
     }
 
@@ -125,11 +129,19 @@ QueltDB* queltdb_open(void) {
     QueltDB* db = _queltdb_new();
     db->open_mode = 'r';
 
+    // Try to open our database files
     db->indexfile = fopen("quelt.index", "rb");
+    db->dbfile = fopen("quelt.db", "rb");
+    if(!db->dbfile || !db->indexfile) {
+        if(db->dbfile) fclose(db->dbfile);
+        if(db->indexfile) fclose(db->indexfile);
+        _queltdb_free(db);
+        return NULL;
+    }
+
+    // Read the index header
     fread(&db->n_articles, sizeof(int32_t), 1, db->indexfile);
     fread(&db->segment_length, sizeof(int32_t), 1, db->indexfile);
-
-    db->dbfile = fopen("quelt.db", "rb");
 
     return db;
 }
@@ -326,5 +338,5 @@ void queltdb_close(QueltDB* db) {
 
     fclose(db->indexfile);
     fclose(db->dbfile);
-    free(db);
+    _queltdb_free(db);
 }
