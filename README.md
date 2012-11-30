@@ -33,6 +33,7 @@ So instead, a custom binary format is used with two files: `quelt.db`, and
 `quelt.index`:
 
     | n_articles:       Int32
+    | segment_length:   Int32
     | article 0 title:  Byte[255]
     | article 0 offset: Int64
     | article 1 title:  Byte[255]

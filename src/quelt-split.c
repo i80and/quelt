@@ -10,6 +10,9 @@
 #include "pprint.h"
 #include "quelt-common.h"
 
+// A reasonable default
+#define SEGMENT_LENGTH 10000
+
 // The command line option -v gives additional information during processing
 static bool option_verbose = false;
 
@@ -40,7 +43,7 @@ typedef struct {
 
 void parsectx_init(ParseCtx* ctx, const char* dbpath, const char* indexpath) {
     memset(ctx, 0, sizeof(ParseCtx));
-    ctx->db = queltdb_create();
+    ctx->db = queltdb_create(SEGMENT_LENGTH);
     if(!ctx->db) {
         fail(RETURN_INTERNALERROR, "Could not open database");
     }
@@ -148,6 +151,7 @@ void parse(const char* path) {
         }
     }
 
+    printf("Sorting\n");
     queltdb_close(ctx.db);
     fclose(infile);
     XML_ParserFree(parser);

@@ -15,10 +15,14 @@
 # define ftello _ftelli64
 #endif
 
+#define HEADER_LEN (sizeof(int32_t)+sizeof(int32_t))
+#define RECORD_LEN (255+sizeof(f_offset))
+
 struct QueltDB {
     // Indicates whether this database is opened for 'w'riting or 'r'eading
     char open_mode;
     int32_t n_articles;
+    int32_t segment_length;
     // The offset in the database file where the current article started
     f_offset article_start;
 
@@ -41,7 +45,7 @@ static QueltDB* _queltdb_new(void) {
     return db;
 }
 
-QueltDB* queltdb_create(void) {
+QueltDB* queltdb_create(int32_t segment_length) {
     QueltDB* db = _queltdb_new();
     if(!db) {
         return NULL;
@@ -54,8 +58,8 @@ QueltDB* queltdb_create(void) {
     db->compression_ctx.zfree = Z_NULL;
     db->compression_ctx.opaque = Z_NULL;
 
-    db->indexfile = fopen("quelt.index", "wb");
-    db->dbfile = fopen("quelt.db", "wb");
+    db->indexfile = fopen("quelt.index", "wb+");
+    db->dbfile = fopen("quelt.db", "wb+");
 
     if(!db->indexfile || !db->dbfile) {
         free(db);
@@ -64,6 +68,10 @@ QueltDB* queltdb_create(void) {
 
     // Pad out a header for an article count
     fwrite(&db->n_articles, sizeof(int32_t), 1, db->indexfile);
+
+    // Pad out a header for a segment length
+    db->segment_length = segment_length;
+    fwrite(&db->segment_length, sizeof(int32_t), 1, db->indexfile);
 
     return db;
 }
@@ -87,7 +95,8 @@ static void _write_chunk(QueltDB* db, const char* s, int len, int flush) {
 
 void queltdb_writechunk(QueltDB* db, const char* buf, size_t len) {
     if(!db->in_article) {
-        deflateInit(&db->compression_ctx, Z_BEST_COMPRESSION);
+        //deflateInit(&db->compression_ctx, Z_BEST_COMPRESSION);
+        deflateInit(&db->compression_ctx, Z_NO_COMPRESSION);
         db->in_article = true;
         db->article_start = ftello(db->dbfile);
     }
@@ -118,6 +127,7 @@ QueltDB* queltdb_open(void) {
 
     db->indexfile = fopen("quelt.index", "rb");
     fread(&db->n_articles, sizeof(int32_t), 1, db->indexfile);
+    fread(&db->segment_length, sizeof(int32_t), 1, db->indexfile);
 
     db->dbfile = fopen("quelt.db", "rb");
 
@@ -181,13 +191,13 @@ static void _queltdb_sendarticle(QueltDB* db, f_offset offset,
     inflateEnd(&decompression_ctx);
 }
 
-void queltdb_getarticle(QueltDB* db, const char* article,
+int queltdb_getarticle(QueltDB* db, const char* article,
                         queltdb_handler_func handler, void* ctx) {
     char title[MAX_TITLE_LEN+1];
     f_offset start = 0;
 
     // Skip past the index header
-    fseeko(db->indexfile, sizeof(int32_t), SEEK_SET);
+    fseeko(db->indexfile, HEADER_LEN, SEEK_SET);
 
     while(!feof(db->indexfile)) {
         fread(title, sizeof(char), MAX_TITLE_LEN, db->indexfile);
@@ -196,9 +206,11 @@ void queltdb_getarticle(QueltDB* db, const char* article,
             _queltdb_sendarticle(db, start, handler, ctx);
 
             // We have what we want.  Short-circuit
-            return;
+            return 1;
         }
     }
+
+    return 0;
 }
 
 // XXX Partial binary search implementation of the above.  I thought Wikipedia
@@ -248,12 +260,54 @@ void queltdb_getarticle(QueltDB* db, const char* title,
 }
 */
 
+static int record_cmp(const void* rec1, const void* rec2) {
+    char rec1_title[MAX_TITLE_LEN+1];
+    char rec2_title[MAX_TITLE_LEN+1];
+    memcpy(rec1_title, rec1, MAX_TITLE_LEN);
+    rec1_title[MAX_TITLE_LEN] = '\0';
+    memcpy(rec2_title, rec2, MAX_TITLE_LEN);
+    rec2_title[MAX_TITLE_LEN] = '\0';
+
+    return strcmp(rec1_title, rec2_title);
+}
+
+// Sort our index for quick searching
+static void queltdb_sort_index(QueltDB* db) {
+    fseek(db->indexfile, HEADER_LEN, SEEK_SET);
+    void* buf = malloc(RECORD_LEN*db->segment_length);
+
+    int32_t i = 0;
+    while(db->n_articles >= i) {
+        const int32_t chunk_len = (db->n_articles >= (i + db->segment_length))?
+               db->segment_length : (db->n_articles - i);
+        fread(buf, RECORD_LEN, chunk_len, db->indexfile);
+
+        qsort(buf, chunk_len, RECORD_LEN, &record_cmp);
+
+        // Rewind to start of segment
+        fseek(db->indexfile, -chunk_len*RECORD_LEN, SEEK_CUR);
+        fwrite(buf, RECORD_LEN, chunk_len, db->indexfile);
+
+        i += db->segment_length;
+    }
+
+    free(buf);
+}
+
 void queltdb_close(QueltDB* db) {
     if(!db) return;
 
     if(db->open_mode == 'w') {
         fseek(db->indexfile, 0, SEEK_SET);
         fwrite(&db->n_articles, sizeof(int32_t), 1, db->indexfile);
+
+        // Only write out our segment length if it's still unknown.
+        if(db->segment_length == 0) {
+            db->segment_length = db->n_articles;
+            fwrite(&db->segment_length, sizeof(db->segment_length), 1, db->indexfile);
+        }
+
+        queltdb_sort_index(db);
     }
 
     fclose(db->indexfile);
