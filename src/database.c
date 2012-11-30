@@ -191,7 +191,7 @@ static void _queltdb_sendarticle(QueltDB* db, f_offset offset,
     inflateEnd(&decompression_ctx);
 }
 
-int queltdb_getarticle(QueltDB* db, const char* article,
+int queltdb_getarticle_linear(QueltDB* db, const char* article,
                         queltdb_handler_func handler, void* ctx) {
     char title[MAX_TITLE_LEN+1];
     f_offset start = 0;
@@ -215,32 +215,28 @@ int queltdb_getarticle(QueltDB* db, const char* article,
 
 // XXX Partial binary search implementation of the above.  I thought Wikipedia
 // dumps were sorted.  They're not.  We need to take care of that first.
-/*
+
 // Find a midpoint, avoiding the low+high<0 overflow problem.
-static inline int32_t _midpoint(int32_t low, int32_t high) {
+static inline int32_t midpoint(int32_t low, int32_t high) {
     // Cast to unsigned necessary to get a logical rshift
     return ((uint32_t)low + (uint32_t)high) >> 1;
 }
 
-void queltdb_getarticle(QueltDB* db, const char* title,
-                        queltdb_handler_func* handler, void* ctx) {
+static int32_t queltdb_search_segment(QueltDB* db,
+                                      const char* title,
+                                      int32_t segment) {
     char cur_title[MAX_TITLE_LEN+1];
-    f_offset start = 0;
-    const size_t index_start = sizeof(int32_t);
+    f_offset index_start = HEADER_LEN + (segment * db->segment_length * RECORD_LEN);
+
     int32_t low = 0;
-    int32_t high = db->n_articles - 1;
-    int32_t cur = _midpoint(low, high);
+    int32_t high = db->segment_length - 1;
+    int32_t old_cur = -1;
+    int32_t cur = midpoint(low, high);
 
-    // Use a sanity guard to make sure a bug doesn't send our algorithm
-    // spinning off forever.  XXX: Do we *really* need this?
-    const float worst_case = ceilf(log2(db->n_articles));
-    float comparisons = 0;
-
-    while(comparisons <= worst_case) {
-        fseeko(db->indexfile, (index_start + cur*(MAX_TITLE_LEN+sizeof(f_offset))), SEEK_SET);
+    while(old_cur != cur) {
+        fseeko(db->indexfile, (index_start + cur*RECORD_LEN), SEEK_SET);
         fread(cur_title, sizeof(char), MAX_TITLE_LEN, db->indexfile);
-        fread(&start, sizeof(f_offset), 1, db->indexfile);
-        log_printf("%d %s", cur, cur_title);
+
         const int cmp = strcmp(title, cur_title);
         if(cmp < 0) {
             high = cur - 1;
@@ -249,16 +245,34 @@ void queltdb_getarticle(QueltDB* db, const char* title,
             low = cur + 1;
         }
         else {
-            log("Found!");
-            break;
+            return segment + cur;
         }
 
-        cur = _midpoint(low, high);
-        comparisons += 1;
+        old_cur = cur;
+        cur = midpoint(low, high);
     }
-    log("Failed");
+
+    return -1;
 }
-*/
+
+int queltdb_getarticle(QueltDB* db, const char* title,
+                       queltdb_handler_func handler, void* ctx) {
+    const int32_t n_segments = db->n_articles / db->segment_length + \
+        ((db->n_articles % db->segment_length == 0)? 0 : 1);
+
+    for(int32_t i = 0; i < n_segments; i += 1) {
+        int32_t rec_no = queltdb_search_segment(db, title, i);
+        if(rec_no >= 0) {
+            f_offset start = 0;
+            fseeko(db->indexfile, HEADER_LEN+(rec_no*RECORD_LEN)+MAX_TITLE_LEN, SEEK_SET);
+            fread(&start, sizeof(start), 1, db->indexfile);
+            _queltdb_sendarticle(db, start, handler, ctx);
+            return 1;
+        }
+    }
+
+    return 0;
+}
 
 static int record_cmp(const void* rec1, const void* rec2) {
     char rec1_title[MAX_TITLE_LEN+1];

@@ -1,7 +1,8 @@
 Things I intend to do in the future (don't hold your breath):
-* quelt-split: Sort the database so we can binary-search.  Heapsort has good characteristics for the purpose.
+* Refactor the internals.  They could be worse, but they could also be much
+  better.
 * quelt: Finish cross-chunk template stripping, and remove XML comments.
 
 Things I will probably only do if specifically asked:
-* Fix database endianness issues.  I don't have a big-endian machine (even my MIPS box is mipsel), so this would be an abstract exercise.
-* Make a more sophisticated WikiMarkup parser, finally making use of the currently-unused pprint module.
+* Make a more sophisticated WikiMarkup parser, finally making use of the
+  currently-unused pprint module.

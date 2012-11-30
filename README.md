@@ -42,4 +42,11 @@ So instead, a custom binary format is used with two files: `quelt.db`, and
     | article n offset: Int64
 
 `quelt.db` is a concatenated sequence of zlib streams, where the start of each
-article is given by the article offsets in `quelt.index`
+article is given by the article offsets in `quelt.index`.
+
+The index is broken up into segments, all of which (except the last) are of
+length `segment_length` and sorted independently.  This gives an efficient
+average search time of `O((n_segments/2) * log(segment_length))` comparisons
+via a series of binary searches, while still allowing quelt and quelt-split to
+run on memory-constrained machines.  Note that this could be used as the first
+step to a real external merge sort.
