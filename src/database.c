@@ -99,8 +99,7 @@ static void _write_chunk(QueltDB* db, const char* s, int len, int flush) {
 
 void queltdb_writechunk(QueltDB* db, const char* buf, size_t len) {
     if(!db->in_article) {
-        //deflateInit(&db->compression_ctx, Z_BEST_COMPRESSION);
-        deflateInit(&db->compression_ctx, Z_NO_COMPRESSION);
+        deflateInit(&db->compression_ctx, Z_BEST_COMPRESSION);
         db->in_article = true;
         db->article_start = ftello(db->dbfile);
     }
